@@ -1,4 +1,8 @@
 import os
+os.system("pip install gdown==4.7.1")
+import gdown
+
+import os
 import gdown
 import streamlit as st
 import tensorflow as tf
