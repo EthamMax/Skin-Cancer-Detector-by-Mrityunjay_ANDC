@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 # ======================
-# Set up Streamlit Page for Full-Screen View
+# Set Full-Screen Page Layout
 # ======================
 st.set_page_config(
     page_title="AI Skin Cancer Detector",
@@ -19,24 +19,30 @@ st.set_page_config(
 )
 
 # ======================
-# Custom CSS for Full-Screen Effect & UI Enhancements
+# Custom CSS for Centered UI & Improved Styling
 # ======================
 st.markdown("""
     <style>
-        /* Full screen */
+        /* Full screen layout */
         .block-container {
             padding-top: 1rem;
             padding-bottom: 1rem;
-            max-width: 90%;
+            max-width: 80%;
+            margin: auto;
         }
         /* Center align text */
         .center-text {
             text-align: center;
         }
-        /* Improve camera preview */
-        .stCamera > div {
-            display: flex;
-            justify-content: center;
+        /* Improve button layout */
+        .stButton>button {
+            width: 100%;
+            height: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #2E86C1;
+            color: white;
+            border-radius: 10px;
         }
         /* Improve image display */
         .stImage img {
@@ -47,7 +53,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ======================
-# App Introduction (Shown First)
+# App Introduction (Centered)
 # ======================
 st.markdown("""
     <h1 class='center-text' style='color: #2E86C1;'>
@@ -118,22 +124,22 @@ except Exception as e:
 # Image Upload / Capture Section (Centered)
 # ======================
 st.header("📸 Capture or Upload an Image")
-st.write("Take a live photo using your camera or upload an existing image.")
 
-col1, col2 = st.columns(2, gap="large")
+col1, col2, col3 = st.columns([1, 2, 1])
 
-# Upload Image
-uploaded_file = col1.file_uploader("📁 Upload a skin lesion image", type=["jpg", "jpeg", "png"], help="Upload an image from your device.")
+with col2:
+    img = None
+    option = st.radio("Choose an option:", ("📁 Upload Image", "📷 Take Photo"), horizontal=True)
 
-# Take Photo with Camera (With a Stylish Frame)
-camera_img = col2.camera_input("📷 Capture an image using your camera")
+    if option == "📁 Upload Image":
+        uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
+        if uploaded_file:
+            img = Image.open(uploaded_file)
 
-# Assign Image from Either Upload or Camera
-img = None
-if uploaded_file:
-    img = Image.open(uploaded_file)
-elif camera_img:
-    img = Image.open(camera_img)
+    elif option == "📷 Take Photo":
+        camera_img = st.camera_input("")
+        if camera_img:
+            img = Image.open(camera_img)
 
 # ======================
 # Prediction & Grad-CAM (Only Runs After an Image is Uploaded)
@@ -188,11 +194,6 @@ if img:
     # Overlay heatmap on original image
     superimposed_img = cv2.addWeighted(np.array(img.resize((224, 224))), 0.6, heatmap, 0.4, 0)
 
-    col5, col6 = st.columns(2, gap="large")
+    st.image(superimposed_img, caption="📊 Grad-CAM Visualization", use_column_width=True)
 
-    with col5:
-        st.image(img, caption="📷 Original Image", use_column_width=True)
-    with col6:
-        st.image(superimposed_img, caption="📊 Grad-CAM Visualization", use_column_width=True)
-
-    st.warning("⚠️ **Important:** This AI tool is for educational purposes only. It is not a substitute for medical diagnosis.")
+    st.warning("⚠️ **Important Notice:** This AI-powered tool is for educational purposes only. It should not be used as a substitute for professional medical diagnosis.")
