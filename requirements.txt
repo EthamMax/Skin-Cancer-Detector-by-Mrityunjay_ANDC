@@ -1,7 +1,8 @@
 tensorflow==2.18.0
 streamlit==1.22.0
-Pillow==9.5.0
-opencv-python-headless>=4.8.0.76
-numpy>=1.26.0,<2.1.0
+Pillow==10.0.1  # Updated to a version with pre-built wheels
+opencv-python-headless==4.7.0.72
+numpy>=1.26.0,<2.1.0  # Pinned to a compatible version
 gdown==4.7.1
-setuptools
+setuptools==68.0.0  # Ensure compatibility with Python 3.12
+protobuf==3.20.3  # Explicit version to avoid conflicts
