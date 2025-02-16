@@ -1,97 +1,50 @@
 import streamlit as st
-import tensorflow as tf
 from PIL import Image
 import numpy as np
-import os
-import gdown
-import base64
-from io import BytesIO
+import cv2
 
-# Set page config
-st.set_page_config(page_title="Skin Cancer Detective", page_icon="🎗️")
-
-# Define the model filename
-model_file = "skin_cancer_model.h5"
-
-# Check if the model file exists; if not, download it from Google Drive
-if not os.path.exists(model_file):
-    st.info("Downloading AI model... Please wait ⏳")
-    file_id = "1DPGyP60aUkKugxQ_XSLhtDATVq41U0_j"  # Replace with your actual file ID
-    url = f"https://drive.google.com/uc?id={file_id}"
-    gdown.download(url, model_file, quiet=False)
-    st.success("Download complete! ✅")
-
-# Load the AI model
-@st.cache_resource
-def load_model():
-    return tf.keras.models.load_model(model_file)
-
-try:
-    model = load_model()
-except Exception as e:
-    st.error(f"Error loading model: {str(e)}")
-    st.stop()
+# Set page config first
+st.set_page_config(page_title="Skin Cancer Detection 🩺", page_icon="🎗️")
 
 # App title and description
-st.title("🎗️ Skin Cancer Detective")
-st.write("Upload or take a photo of a skin lesion for AI-powered analysis.")
+st.title("Skin Cancer Detection 🩺")
+st.write("Upload an image or take a photo using your camera to detect skin cancer.")
 
-# Create tabs for the two input methods
-tab1, tab2 = st.tabs(["📁 Upload Image", "📷 Take Photo"])
+# Option to upload or take a photo
+option = st.radio("Choose an option:", ("Upload an image", "Take a photo from camera"))
 
-# Function to process image and make prediction
-def process_image(img):
-    with st.spinner("Analyzing image..."):
-        img = img.convert('RGB')  # Ensure RGB format
-        img_display = img.copy()
-        img = img.resize((224, 224))
-        st.image(img_display, caption="Your Skin Spot", use_column_width=True)
-        
-        # Predict
-        img_array = np.array(img) / 255.0
-        prediction = model.predict(np.expand_dims(img_array, axis=0))
-        
-        class_names = ['Melanoma', 'Nevus', 'Basal Cell Carcinoma', 'Actinic Keratosis',
-                      'Benign Keratosis', 'Dermatofibroma', 'Vascular Lesion']
-        
-        result = class_names[np.argmax(prediction)]
-        confidence = float(prediction[0][np.argmax(prediction)]) * 100
-        
-        # Show prediction with confidence
-        st.success(f"🔍 Prediction: {result} (Confidence: {confidence:.1f}%)")
-        
-        # Important disclaimer
-        st.warning("⚠️ IMPORTANT: This is not medical advice. Please consult a dermatologist for proper diagnosis.")
+# Initialize image variable
+image = None
 
-# Tab 1: Upload Image
-with tab1:
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+if option == "Upload an image":
+    # File uploader for image upload
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
-        try:
-            img = Image.open(uploaded_file)
-            process_image(img)
-        except Exception as e:
-            st.error(f"Error processing image: {str(e)}")
+        # Read the image
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image", use_column_width=True)
 
-# Tab 2: Take Photo
-with tab2:
-    st.write("Please allow camera access when prompted")
-    picture = st.camera_input("Take a picture")
-    if picture is not None:
-        try:
-            img = Image.open(picture)
-            process_image(img)
-        except Exception as e:
-            st.error(f"Error processing camera image: {str(e)}")
+elif option == "Take a photo from camera":
+    # Camera input for taking a photo
+    camera_image = st.camera_input("Take a photo")
+    if camera_image is not None:
+        # Read the image
+        image = Image.open(camera_image)
+        st.image(image, caption="Captured Photo", use_column_width=True)
 
-# Add information section
-with st.expander("About this app"):
-    st.write("""
-    This app uses a deep learning model to analyze skin lesion images.
-    The model was trained on the HAM10000 dataset and can identify 7 different types of skin conditions.
-    Always consult with a medical professional for proper diagnosis.
-    """)
-    
-# Add footer
-st.markdown("---")
-st.markdown("Created for educational purposes only. Not for medical use.")
+# If an image is available, process it
+if image is not None:
+    # Convert PIL image to numpy array for processing
+    image_np = np.array(image)
+
+    # Example: Convert the image to grayscale (replace with your actual processing logic)
+    processed_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
+
+    # Display the processed image
+    st.write("Processed Image (Grayscale):")
+    st.image(processed_image, caption="Processed Image", use_column_width=True)
+
+    # Add your skin cancer detection logic here
+    # For example, you can use a pre-trained model to predict the result
+    # prediction = model.predict(processed_image)
+    # st.write(f"Prediction: {prediction}")
