@@ -23,32 +23,10 @@ st.set_page_config(
 # ======================
 st.markdown("""
     <style>
-        /* Full screen layout */
-        .block-container {
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-            max-width: 80%;
-            margin: auto;
-        }
-        /* Center align text */
-        .center-text {
-            text-align: center;
-        }
-        /* Improve button layout */
-        .stButton>button {
-            width: 100%;
-            height: 50px;
-            font-size: 16px;
-            font-weight: bold;
-            background-color: #2E86C1;
-            color: white;
-            border-radius: 10px;
-        }
-        /* Improve image display */
-        .stImage img {
-            border-radius: 10px;
-            box-shadow: 3px 3px 10px rgba(0,0,0,0.2);
-        }
+        .block-container { padding-top: 1rem; padding-bottom: 1rem; max-width: 80%; margin: auto; }
+        .center-text { text-align: center; }
+        .stButton>button { width: 100%; height: 50px; font-size: 16px; font-weight: bold; background-color: #2E86C1; color: white; border-radius: 10px; }
+        .stImage img { border-radius: 10px; box-shadow: 3px 3px 10px rgba(0,0,0,0.2); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -153,23 +131,32 @@ if img:
     with col3:
         st.image(img, caption="📷 Input Image", use_column_width=True)
 
-    # Preprocess image
-    img_array = np.array(img.resize((224, 224))) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
+    # Convert image to RGB
+    img = img.convert("RGB")
+
+    # Resize & preprocess image
+    img_array = np.array(img.resize((224, 224)), dtype=np.float32) / 255.0  
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    img_array = tf.convert_to_tensor(img_array, dtype=tf.float32)
 
     # Make prediction
     with st.spinner("🩺 Analyzing image... ⏳"):
-        preds = model.predict(img_array)
-        predicted_class = np.argmax(preds)
-        confidence = np.max(preds) * 100
+        try:
+            preds = model.predict(img_array)
+            predicted_class = np.argmax(preds)
+            confidence = np.max(preds) * 100
 
-        # Define class labels
-        class_names = ['Melanoma (Cancerous)', 'Benign (Non-Cancerous)']
+            # Define class labels
+            class_names = ['Melanoma (Cancerous)', 'Benign (Non-Cancerous)']
 
-    # Display Prediction
-    with col4:
-        st.subheader(f"Prediction: **{class_names[predicted_class]}**")
-        st.metric(label="Confidence", value=f"{confidence:.2f}%", delta="AI Confidence Score")
+            # Display Prediction
+            with col4:
+                st.subheader(f"Prediction: **{class_names[predicted_class]}**")
+                st.metric(label="Confidence", value=f"{confidence:.2f}%", delta="AI Confidence Score")
+
+        except Exception as e:
+            st.error(f"Prediction Error: {e}")
+            st.stop()
 
     # ======================
     # Grad-CAM Heatmap
