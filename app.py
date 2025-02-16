@@ -135,9 +135,16 @@ if img:
     img = img.convert("RGB")
 
     # Resize & preprocess image
-    img_array = np.array(img.resize((224, 224)), dtype=np.float32) / 255.0
+    img_array = np.array(img.resize((224, 224)), dtype=np.float32) / 255.0  
+
+    # Ensure proper shape
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+
+    # Convert to TensorFlow tensor
     img_array = tf.convert_to_tensor(img_array, dtype=tf.float32)
+
+    # Debugging: Check input shape
+    st.write(f"🔍 Processed Image Shape: {img_array.shape}")
 
     # Make prediction
     with st.spinner("🩺 Analyzing image... ⏳"):
