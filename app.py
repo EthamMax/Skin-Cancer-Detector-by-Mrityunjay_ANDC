@@ -146,8 +146,17 @@ if img:
             predicted_class = np.argmax(preds)
             confidence = np.max(preds) * 100
 
-            # Define class labels
-            class_names = ['Melanoma (Cancerous)', 'Benign (Non-Cancerous)']
+            # Ensure class names match the model's output
+            class_names = ['Melanoma', 'Melanocytic Nevus', 'Basal Cell Carcinoma',
+                           'Actinic Keratosis', 'Benign Keratosis', 'Dermatofibroma', 'Vascular Lesion']
+
+            # Debugging - Print Model Output
+            st.write(f"🔍 Raw Model Output: {preds}")
+
+            # Check for out-of-range index error
+            if predicted_class >= len(class_names):
+                st.error(f"⚠️ Prediction Error: Index {predicted_class} is out of range! The model might be incorrect.")
+                st.stop()  # Stop execution if error
 
             # Display Prediction
             with col4:
@@ -157,30 +166,5 @@ if img:
         except Exception as e:
             st.error(f"Prediction Error: {e}")
             st.stop()
-
-    # ======================
-    # Grad-CAM Heatmap
-    # ======================
-    st.subheader("🧐 How AI Sees Your Image (Grad-CAM)")
-    last_conv_layer_name = "conv2d_4"  # Replace with your actual last conv layer
-    grad_model = tf.keras.models.Model([model.inputs], [model.get_layer(last_conv_layer_name).output, model.output])
-
-    with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_array)
-        loss = predictions[:, predicted_class]
-
-    grads = tape.gradient(loss, conv_outputs)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
-    heatmap = tf.reduce_mean(tf.multiply(pooled_grads, conv_outputs), axis=-1)
-    heatmap = np.maximum(heatmap, 0) / (np.max(heatmap) + 1e-8)
-    heatmap = cv2.resize(heatmap.numpy(), (224, 224))
-    heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-
-    # Overlay heatmap on original image
-    superimposed_img = cv2.addWeighted(np.array(img.resize((224, 224))), 0.6, heatmap, 0.4, 0)
-
-    st.image(superimposed_img, caption="📊 Grad-CAM Visualization", use_column_width=True)
 
     st.warning("⚠️ **Important Notice:** This AI-powered tool is for educational purposes only. It should not be used as a substitute for professional medical diagnosis.")
