@@ -135,17 +135,7 @@ if img:
     img = img.convert("RGB")
 
     # Resize & preprocess image
-    # Convert image to RGB (Some models use grayscale by mistake)
-    img = img.convert("RGB")
-
-# Resize & preprocess image (Ensure correct format)
-    img_array = np.array(img.resize((224, 224)), dtype=np.float32) / 255.0  
-
-# Ensure shape is (1, 224, 224, 3)
-    img_array = np.expand_dims(img_array, axis=0)
-
-# Convert to TensorFlow tensor
-    img_array = tf.convert_to_tensor(img_array, dtype=tf.float32)
+    img_array = np.array(img.resize((224, 224)), dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
     img_array = tf.convert_to_tensor(img_array, dtype=tf.float32)
 
