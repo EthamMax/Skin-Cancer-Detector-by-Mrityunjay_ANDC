@@ -14,8 +14,8 @@ from PIL import Image
 st.set_page_config(
     page_title="AI Skin Cancer Detector",
     page_icon="🎗️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
 # ======================
@@ -89,20 +89,23 @@ except Exception as e:
 # ======================
 # Image Upload / Capture Section
 # ======================
-st.sidebar.header("📸 Input Image")
-st.sidebar.write("Upload a skin image or take a live photo.")
+st.header("📸 Capture or Upload an Image")
+st.write("Take a live photo using your camera or upload an existing image.")
 
-option = st.sidebar.radio("Choose input method:", ("📁 Upload Image", "📷 Take Photo from Camera"))
+col1, col2 = st.columns([1, 1])
 
+# Upload Image
+uploaded_file = col1.file_uploader("📁 Upload a skin lesion image", type=["jpg", "jpeg", "png"], help="Upload an image from your device.")
+
+# Take Photo with Camera (With a Stylish Frame)
+camera_img = col2.camera_input("📷 Capture an image using your camera")
+
+# Assign Image from Either Upload or Camera
 img = None
-if option == "📁 Upload Image":
-    uploaded_file = st.sidebar.file_uploader("Upload a skin lesion image", type=["jpg", "jpeg", "png"])
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-elif option == "📷 Take Photo from Camera":
-    camera_img = st.sidebar.camera_input("Capture a photo")
-    if camera_img:
-        img = Image.open(camera_img)
+if uploaded_file:
+    img = Image.open(uploaded_file)
+elif camera_img:
+    img = Image.open(camera_img)
 
 # ======================
 # Prediction & Grad-CAM (Only Runs After an Image is Uploaded)
@@ -111,10 +114,10 @@ if img:
     st.divider()
     st.subheader("🔬 AI Skin Cancer Analysis")
 
-    col1, col2 = st.columns([1, 1])
+    col3, col4 = st.columns([1, 1])
 
-    with col1:
-        st.image(img, caption="📷 Uploaded Image", use_column_width=True)
+    with col3:
+        st.image(img, caption="📷 Input Image", use_column_width=True)
 
     # Preprocess image
     img_array = np.array(img.resize((224, 224))) / 255.0
@@ -130,7 +133,7 @@ if img:
         class_names = ['Melanoma (Cancerous)', 'Benign (Non-Cancerous)']
 
     # Display Prediction
-    with col2:
+    with col4:
         st.subheader(f"Prediction: **{class_names[predicted_class]}**")
         st.metric(label="Confidence", value=f"{confidence:.2f}%", delta="AI Confidence Score")
 
@@ -157,11 +160,11 @@ if img:
     # Overlay heatmap on original image
     superimposed_img = cv2.addWeighted(np.array(img.resize((224, 224))), 0.6, heatmap, 0.4, 0)
 
-    col3, col4 = st.columns([1, 1])
+    col5, col6 = st.columns([1, 1])
 
-    with col3:
+    with col5:
         st.image(img, caption="📷 Original Image", use_column_width=True)
-    with col4:
+    with col6:
         st.image(superimposed_img, caption="📊 Grad-CAM Visualization", use_column_width=True)
 
     st.markdown("""
