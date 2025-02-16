@@ -9,24 +9,52 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 # ======================
-# Set up Streamlit Page
+# Set up Streamlit Page for Full-Screen View
 # ======================
 st.set_page_config(
     page_title="AI Skin Cancer Detector",
     page_icon="🎗️",
-    layout="centered",
+    layout="wide",  # Full-screen layout
     initial_sidebar_state="collapsed"
 )
+
+# ======================
+# Custom CSS for Full-Screen Effect & UI Enhancements
+# ======================
+st.markdown("""
+    <style>
+        /* Full screen */
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            max-width: 90%;
+        }
+        /* Center align text */
+        .center-text {
+            text-align: center;
+        }
+        /* Improve camera preview */
+        .stCamera > div {
+            display: flex;
+            justify-content: center;
+        }
+        /* Improve image display */
+        .stImage img {
+            border-radius: 10px;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # ======================
 # App Introduction (Shown First)
 # ======================
 st.markdown("""
-    <h1 style='text-align: center; color: #2E86C1;'>
+    <h1 class='center-text' style='color: #2E86C1;'>
         🔬 AI-Powered Skin Cancer Detection with Grad-CAM
     </h1>
-    <h3 style='text-align: center;'>Developed by: <b>Mrityunjay Kumar</b></h3>
-    <h4 style='text-align: center;'>Acharya Narendra Dev College, University of Delhi</h4>
+    <h3 class='center-text'>Developed by: <b>Mrityunjay Kumar</b></h3>
+    <h4 class='center-text'>Acharya Narendra Dev College, University of Delhi</h4>
     <div style='text-align: justify; margin: 20px 0;'>
         <p>Skin cancer is one of the most common cancers worldwide, and early detection 
         can save lives. This AI-powered tool analyzes skin lesions to provide a preliminary 
@@ -87,12 +115,12 @@ except Exception as e:
     st.stop()
 
 # ======================
-# Image Upload / Capture Section
+# Image Upload / Capture Section (Centered)
 # ======================
 st.header("📸 Capture or Upload an Image")
 st.write("Take a live photo using your camera or upload an existing image.")
 
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns(2, gap="large")
 
 # Upload Image
 uploaded_file = col1.file_uploader("📁 Upload a skin lesion image", type=["jpg", "jpeg", "png"], help="Upload an image from your device.")
@@ -114,7 +142,7 @@ if img:
     st.divider()
     st.subheader("🔬 AI Skin Cancer Analysis")
 
-    col3, col4 = st.columns([1, 1])
+    col3, col4 = st.columns(2, gap="large")
 
     with col3:
         st.image(img, caption="📷 Input Image", use_column_width=True)
@@ -160,20 +188,11 @@ if img:
     # Overlay heatmap on original image
     superimposed_img = cv2.addWeighted(np.array(img.resize((224, 224))), 0.6, heatmap, 0.4, 0)
 
-    col5, col6 = st.columns([1, 1])
+    col5, col6 = st.columns(2, gap="large")
 
     with col5:
         st.image(img, caption="📷 Original Image", use_column_width=True)
     with col6:
         st.image(superimposed_img, caption="📊 Grad-CAM Visualization", use_column_width=True)
 
-    st.markdown("""
-        ### 🧐 Understanding the Prediction
-        - The **Grad-CAM heatmap** shows the **regions AI focused on** while analyzing your image.
-        - 🔴 **Red/Yellow Areas:** The most important regions for AI's decision.
-        - 🟢 **Blue/Green Areas:** Less important regions.
-        - AI uses this technique to highlight **potential cancerous regions** in the skin lesion.
-    """)
-
-    st.divider()
-    st.warning("⚠️ **Important Notice:** This AI-powered tool is for educational and research purposes only. It should not be used as a substitute for professional medical diagnosis.")
+    st.warning("⚠️ **Important:** This AI tool is for educational purposes only. It is not a substitute for medical diagnosis.")
