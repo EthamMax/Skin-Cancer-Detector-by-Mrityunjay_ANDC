@@ -1,113 +1,97 @@
 import streamlit as st
-
-# Set page config first – this must be the first Streamlit command!
-st.set_page_config(page_title="Skin Cancer Detection 🩺", page_icon="🎗️")
-
-# Now import the rest of the modules
-import os
-import gdown
 import tensorflow as tf
 from PIL import Image
 import numpy as np
-import cv2
+import os
+import gdown
+import base64
+from io import BytesIO
 
-"""
-AI-Powered Skin Cancer Detection Web App with Grad-CAM Visualization
-Developed by: Mrityunjay Kumar
-Acharya Narendra Dev College, University of Delhi
+# Set page config
+st.set_page_config(page_title="Skin Cancer Detective", page_icon="🎗️")
 
-This web app uses a pre-trained deep learning model to detect skin cancer
-from uploaded skin lesion images and applies Grad-CAM to visualize the regions
-of interest. This project is for educational purposes only and is not a substitute
-for professional medical diagnosis.
-"""
-
-# Define the model filename (consistent usage)
+# Define the model filename
 model_file = "skin_cancer_model.h5"
 
 # Check if the model file exists; if not, download it from Google Drive
 if not os.path.exists(model_file):
     st.info("Downloading AI model... Please wait ⏳")
-    file_id = "1DPGyP60aUkKugxQ_XSLhtDATVq41U0_j"  # Replace with your actual file ID from Google Drive
+    file_id = "1DPGyP60aUkKugxQ_XSLhtDATVq41U0_j"  # Replace with your actual file ID
     url = f"https://drive.google.com/uc?id={file_id}"
     gdown.download(url, model_file, quiet=False)
     st.success("Download complete! ✅")
 
-# Cache model loading so that it's loaded only once
+# Load the AI model
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model(model_file)
-    # Build the model's graph with a dummy input
-    dummy_input = np.zeros((1, 224, 224, 3))
-    _ = model.predict(dummy_input)
-    return model
+    return tf.keras.models.load_model(model_file)
 
-model = load_model()
-
-# Define the Grad-CAM function
-def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    # Create a model mapping input to last conv layer output and predictions
-    grad_model = tf.keras.models.Model(
-        inputs=model.input,
-        outputs=[model.get_layer(last_conv_layer_name).output, model.output]
-    )
-    with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_array)
-        if pred_index is None:
-            pred_index = tf.argmax(predictions[0])
-        loss = predictions[:, pred_index]
-    grads = tape.gradient(loss, conv_outputs)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    conv_outputs = conv_outputs[0]
-    heatmap = tf.reduce_mean(tf.multiply(pooled_grads, conv_outputs), axis=-1)
-    heatmap = np.maximum(heatmap, 0) / (np.max(heatmap) + 1e-8)
-    return heatmap
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"Error loading model: {str(e)}")
+    st.stop()
 
 # App title and description
 st.title("🎗️ Skin Cancer Detective")
-st.write("Take a photo or upload a skin lesion image to see the AI prediction and Grad-CAM visualization.")
+st.write("Upload or take a photo of a skin lesion for AI-powered analysis.")
 
-# Let users choose their input method: camera or file upload
-input_method = st.radio("Select Image Input Method:", ("Camera", "Upload from Device"))
+# Create tabs for the two input methods
+tab1, tab2 = st.tabs(["📁 Upload Image", "📷 Take Photo"])
 
-image = None
-if input_method == "Camera":
-    camera_image = st.camera_input("Take a photo")
-    if camera_image is not None:
-        image = Image.open(camera_image).convert("RGB")
-        st.image(image, caption="Captured Image", use_column_width=True)
-elif input_method == "Upload from Device":
-    uploaded_file = st.file_uploader("Upload a skin lesion image...", type=["jpg", "png", "jpeg"])
+# Function to process image and make prediction
+def process_image(img):
+    with st.spinner("Analyzing image..."):
+        img = img.convert('RGB')  # Ensure RGB format
+        img_display = img.copy()
+        img = img.resize((224, 224))
+        st.image(img_display, caption="Your Skin Spot", use_column_width=True)
+        
+        # Predict
+        img_array = np.array(img) / 255.0
+        prediction = model.predict(np.expand_dims(img_array, axis=0))
+        
+        class_names = ['Melanoma', 'Nevus', 'Basal Cell Carcinoma', 'Actinic Keratosis',
+                      'Benign Keratosis', 'Dermatofibroma', 'Vascular Lesion']
+        
+        result = class_names[np.argmax(prediction)]
+        confidence = float(prediction[0][np.argmax(prediction)]) * 100
+        
+        # Show prediction with confidence
+        st.success(f"🔍 Prediction: {result} (Confidence: {confidence:.1f}%)")
+        
+        # Important disclaimer
+        st.warning("⚠️ IMPORTANT: This is not medical advice. Please consult a dermatologist for proper diagnosis.")
+
+# Tab 1: Upload Image
+with tab1:
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
-        image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+        try:
+            img = Image.open(uploaded_file)
+            process_image(img)
+        except Exception as e:
+            st.error(f"Error processing image: {str(e)}")
 
-if image is not None:
-    # Resize and preprocess the image for the model
-    image_resized = image.resize((224, 224))
-    img_array = np.array(image_resized) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
+# Tab 2: Take Photo
+with tab2:
+    st.write("Please allow camera access when prompted")
+    picture = st.camera_input("Take a picture")
+    if picture is not None:
+        try:
+            img = Image.open(picture)
+            process_image(img)
+        except Exception as e:
+            st.error(f"Error processing camera image: {str(e)}")
 
-    # Get prediction from the model
-    prediction = model.predict(img_array)
-    class_names = ['Melanoma', 'Melanocytic nevus', 'Basal cell carcinoma',
-                   'Actinic keratosis', 'Benign keratosis', 'Dermatofibroma', 'Vascular lesion']
-    pred_index = np.argmax(prediction)
-    predicted_class = class_names[pred_index]
-    confidence = prediction[0][pred_index] * 100
-    st.success(f"🔍 Prediction: {predicted_class} (Confidence: {confidence:.1f}%)")
-
-    # Generate Grad-CAM visualization
-    # Set last conv layer name – update if needed based on your model
-    last_conv_layer_name = "conv2d"  
-    heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name)
-    heatmap = cv2.resize(heatmap, (224, 224))
-    heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+# Add information section
+with st.expander("About this app"):
+    st.write("""
+    This app uses a deep learning model to analyze skin lesion images.
+    The model was trained on the HAM10000 dataset and can identify 7 different types of skin conditions.
+    Always consult with a medical professional for proper diagnosis.
+    """)
     
-    # Overlay heatmap on the image
-    img_array_orig = np.array(image_resized)
-    superimposed_img = cv2.addWeighted(img_array_orig, 0.6, heatmap, 0.4, 0)
-    st.image(superimposed_img, caption="Grad-CAM Visualization", use_column_width=True)
-    
-    st.warning("⚠️ This tool is for educational purposes only and is not a substitute for professional medical diagnosis.")
+# Add footer
+st.markdown("---")
+st.markdown("Created for educational purposes only. Not for medical use.")
