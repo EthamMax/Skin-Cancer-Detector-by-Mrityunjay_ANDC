@@ -14,7 +14,7 @@ from PIL import Image
 st.set_page_config(
     page_title="AI Skin Cancer Detector",
     page_icon="🎗️",
-    layout="wide",  # Full-screen layout
+    layout="wide",
     initial_sidebar_state="collapsed"
 )
 
@@ -54,49 +54,37 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-st.divider()  # Adds a visual separator
+st.divider()
 
 # ======================
-# Load Model with Download Progress Bar
+# Model Loading (FIXED)
 # ======================
-model_url = "https://huggingface.co/MrityuTron/skin-cancer-detector-by-mrityunjay-kumar-andc/resolve/main/skin_cancer_model.h5"
-model_file = "skin_cancer_model.h5"
-
-def download_model():
-    """Downloads the model from Hugging Face with a progress bar."""
-    if not os.path.exists(model_file):
-        st.info("Downloading AI model from Hugging Face... ⏳")
-
-        with st.progress(0, text="Starting download...") as progress_bar:
-            start_time = time.time()
-            response = requests.get(model_url, stream=True)
-            total_size = int(response.headers.get("content-length", 0))
-            block_size = 8192  # 8 KB
-            downloaded_size = 0
-
-            with open(model_file, "wb") as f:
-                for chunk in response.iter_content(chunk_size=block_size):
-                    f.write(chunk)
-                    downloaded_size += len(chunk)
-                    progress = downloaded_size / total_size
-                    elapsed_time = time.time() - start_time
-                    speed = downloaded_size / (elapsed_time + 1e-8) / 1_000_000  # MB/s
-                    progress_bar.progress(progress, text=f"Downloaded {downloaded_size//1_000_000}MB / {total_size//1_000_000}MB ({speed:.2f} MB/s)")
-
-            st.success("Download complete! ✅")
-
-download_model()
-
 @st.cache_resource
-def load_model():
-    """Loads the TensorFlow model"""
-    return tf.keras.models.load_model(model_file)
+def load_cancer_model():
+    """Load pre-trained skin cancer classification model"""
+    model_path = 'skin_cancer_model.h5'
+    try:
+        model = tf.keras.models.load_model(model_path)
+        if model.output_shape[1] != 7:
+            st.error("Model architecture mismatch! Expected 7 output classes.")
+            return None
+        return model
+    except Exception as e:
+        st.error(f"Model loading failed: {str(e)}")
+        return None
 
-try:
-    model = load_model()
-except Exception as e:
-    st.error(f"Error loading model: {e}")
-    st.stop()
+# ======================
+# Class Labels (FIXED)
+# ======================
+CLASS_NAMES = [
+    'Actinic Keratosis',
+    'Basal Cell Carcinoma',
+    'Benign Keratosis',
+    'Dermatofibroma',
+    'Melanocytic Nevus',
+    'Melanoma',
+    'Vascular Lesion'
+]
 
 # ======================
 # Image Upload / Capture Section (Centered)
@@ -120,7 +108,7 @@ with col2:
             img = Image.open(camera_img)
 
 # ======================
-# Prediction & Grad-CAM (Only Runs After an Image is Uploaded)
+# Prediction Logic (FIXED)
 # ======================
 if img:
     st.divider()
@@ -131,45 +119,31 @@ if img:
     with col3:
         st.image(img, caption="📷 Input Image", use_column_width=True)
 
-    # Convert image to RGB
     img = img.convert("RGB")
-
-    # Resize & preprocess image
     img_array = np.array(img.resize((224, 224)), dtype=np.float32) / 255.0  
-
-    # Ensure proper shape
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-
-    # Convert to TensorFlow tensor
+    img_array = np.expand_dims(img_array, axis=0)
     img_array = tf.convert_to_tensor(img_array, dtype=tf.float32)
 
-    # Debugging: Check input shape
-    st.write(f"🔍 Processed Image Shape: {img_array.shape}")
-
-    # Make prediction
     with st.spinner("🩺 Analyzing image... ⏳"):
         try:
+            model = load_cancer_model()
+            if model is None:
+                st.stop()
+
             preds = model.predict(img_array)
-            predicted_class = np.argmax(preds)
+            if np.sum(preds) > 1.0:
+                preds = tf.nn.softmax(preds).numpy()
+
             confidence = np.max(preds) * 100
+            predicted_class = np.argmax(preds)
+            diagnosis = CLASS_NAMES[predicted_class]
 
-            # Ensure class names match the model's output
-            class_names = ['Melanoma', 'Melanocytic Nevus', 'Basal Cell Carcinoma',
-                           'Actinic Keratosis', 'Benign Keratosis', 'Dermatofibroma', 'Vascular Lesion']
-
-            # Debugging - Print Model Output
-            st.write(f"🔍 Raw Model Output: {preds}")
-
-            # Check for out-of-range index error
-            if predicted_class >= len(class_names):
-                st.error(f"⚠️ Prediction Error: Index {predicted_class} is out of range! The model might be incorrect.")
-                st.stop()  # Stop execution if error
-
-            # Display Prediction
             with col4:
-                st.subheader(f"Prediction: **{class_names[predicted_class]}**")
+                st.subheader(f"Prediction: **{diagnosis}**")
                 st.metric(label="Confidence", value=f"{confidence:.2f}%", delta="AI Confidence Score")
 
+            st.write("Raw Predictions:", preds)
+            st.write("Class Probabilities:", dict(zip(CLASS_NAMES, preds[0])))
         except Exception as e:
             st.error(f"Prediction Error: {e}")
             st.stop()
