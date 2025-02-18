@@ -57,20 +57,33 @@ st.markdown("""
 st.divider()
 
 # ======================
-# Model Loading (FIXED)
+# Model Loading (UPDATED)
 # ======================
 @st.cache_resource
 def load_cancer_model():
-    """Load pre-trained skin cancer classification model"""
-    model_path = 'skin_cancer_model.h5'
+    """Download and load pre-trained skin cancer classification model"""
+    model_url = "https://huggingface.co/MrityuTron/skin-cancer-detector-by-mrityunjay-kumar-andc/resolve/main/skin_cancer_model.h5"
+    model_path = "skin_cancer_model.h5"
+
+    if not os.path.exists(model_path):
+        with st.spinner("📥 Downloading AI model... This may take a minute."):
+            response = requests.get(model_url, stream=True)
+            if response.status_code == 200:
+                with open(model_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        f.write(chunk)
+            else:
+                st.error("❌ Failed to download model. Please check the link or try again later.")
+                return None
+
     try:
         model = tf.keras.models.load_model(model_path)
         if model.output_shape[1] != 7:
-            st.error("Model architecture mismatch! Expected 7 output classes.")
+            st.error("❌ Model architecture mismatch! Expected 7 output classes.")
             return None
         return model
     except Exception as e:
-        st.error(f"Model loading failed: {str(e)}")
+        st.error(f"❌ Model loading failed: {str(e)}")
         return None
 
 # ======================
